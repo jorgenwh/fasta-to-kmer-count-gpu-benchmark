@@ -1,0 +1,175 @@
+from itertools import product
+import numpy as np
+import cupy as cp
+
+class ThreeBitEncoding:
+    reverse=np.array([0, ord("A"), 0, ord("C"), ord("G"), 0, 0, ord("T")], dtype=np.uint8)
+    complements= np.array([0, 7, 0, 4, 3, 0, 0, 1], dtype=np.uint8)
+
+    @classmethod
+    def from_bytes(cls, sequence):
+        return sequence & (2**3-1)
+
+    @classmethod
+    def to_bytes(cls, sequence):
+        return cls.reverse[sequence]
+
+    @classmethod
+    def complement(cls, sequence):
+        return cls.complements[sequence]
+
+class BaseEncoding:
+    """ Basic ACII byte encoding """
+    complements = np.zeros(256, dtype=np.uint8)
+    complements[[ord(c) for c in "ACGT"]] = [ord(c) for c in "TGCA"]
+    complements[[ord(c) for c in "acgt"]] = [ord(c) for c in "tgca"]
+
+    @classmethod
+    def complement(cls, sequence):
+        return cls.complements[sequence]
+
+    @classmethod
+    def from_string(cls, sequence):
+        return np.array([ord(c) for c in sequence], dtype=np.uint8)
+
+    @classmethod
+    def from_bytes(cls, sequence):
+        """Identity"""
+        return sequence
+
+    @classmethod
+    def to_bytes(cls, sequence):
+        """Identity"""
+        return sequence
+
+    @classmethod
+    def to_string(cls, byte_sequence):
+        return "".join(chr(b) for b in byte_sequence)
+
+class ACTGTwoBitEncoding:
+    letters = ["A", "C", "T", "G"]
+    bitcodes = ["00", "01", 
+                "10", "11"]
+
+    reverse = np.array([1, 3, 20, 7], dtype=np.uint8)
+    _lookup_2bytes_to_4bits = np.zeros(256 * 256, dtype=np.uint8)
+    _lookup_2bytes_to_4bits[256 * reverse[np.arange(4)[:, None]] + reverse[np.arange(4)]] = np.arange(4)[:, None] * 4 + np.arange(4)
+    _shift_4bits = (4 * np.arange(2, dtype=np.uint8))
+    _shift_2bits = 2 * np.arange(4, dtype=np.uint8)
+    _complements = np.packbits([1, 0, 1, 0, 1, 0, 1, 0])
+
+    cp_reverse = cp.array([1, 3, 20, 7], dtype=np.uint8)
+    _cp_lookup_2bytes_to_4bits = cp.zeros(256 * 256, dtype=np.uint8)
+    _cp_lookup_2bytes_to_4bits[256 * cp_reverse[cp.arange(4)[:, None]] + cp_reverse[cp.arange(4)]] = cp.arange(4)[:, None] * 4 + cp.arange(4)
+    _cp_shift_4bits = (4 * cp.arange(2, dtype=np.uint8))
+    _cp_shift_2bits = 2 * cp.arange(4, dtype=np.uint8)
+    _cp_complements = cp.asarray(_complements)
+
+    @classmethod
+    def convert_2bytes_to_4bits(cls, two_bytes):
+        assert two_bytes.dtype == np.uint16, two_bytes.dtype
+        if isinstance(two_bytes, np.ndarray):
+            return cls._lookup_2bytes_to_4bits[two_bytes]
+        elif isinstance(two_bytes, cp._core.core.ndarray):
+            return cls._cp_lookup_2bytes_to_4bits[two_bytes]
+        else:
+            raise NotImplemented
+
+    @classmethod
+    def join_4bits_to_byte(cls, four_bits):
+        if isinstance(four_bits, np.ndarray):
+            return np.sum(four_bits << cls._shift_4bits, axis=1, dtype=np.uint8)
+        elif isinstance(four_bits, cp._core.core.ndarray):
+            return cp.sum(four_bits << cls._cp_shift_4bits, axis=1, dtype=np.uint8)
+        else:
+            raise NotImplemented
+
+    @classmethod
+    def complement(cls, char):
+        dtype = char.dtype
+
+        if isinstance(char, np.ndarray):
+            return (char.view(np.uint8) ^ cls._complements).view(dtype)
+        elif isinstance(char, cp._core.core.ndarray):
+            return (char.view(np.uint8) ^ cls._cp_complements).view(dtype)
+        else:
+            raise NotImplemented
+
+    @classmethod
+    def from_bytes(cls, sequence):
+        assert sequence.dtype==np.uint8
+        assert sequence.size % 4 == 0, sequence.size
+        sequence = sequence & 31
+        four_bits = cls.convert_2bytes_to_4bits(sequence.view(np.uint16))
+        codes = cls.join_4bits_to_byte(four_bits.reshape(-1, 2))
+        assert codes.dtype == np.uint8, codes.dtype
+        return codes.flatten().view(np.uint8)
+
+    @classmethod
+    def from_string(cls, string):
+        byte_repr = np.array([ord(c) for c in string], dtype=np.uint8)
+        return cls.from_bytes(byte_repr)
+
+    @classmethod
+    def to_string(cls, bits):
+        byte_repr = cls.to_bytes(bits)
+        return "".join(chr(b) for b in byte_repr)
+
+    @classmethod
+    def to_bytes(cls, sequence):
+        assert sequence.dtype==np.uint8
+        bit_mask = np.uint8(3) # last two bits
+        all_bytes = (sequence[:, None]>>cls._shift_2bits) & bit_mask
+        return cls.reverse[all_bytes.flatten()]+96
+
+class ACTGEncoding:
+    _lookup_byte_to_2bits = np.zeros(256, dtype=np.uint8)
+    _lookup_byte_to_2bits[[97, 65]] = 0
+    _lookup_byte_to_2bits[[99, 67]] = 1
+    _lookup_byte_to_2bits[[116, 84]] = 2
+    _lookup_byte_to_2bits[[103, 71]] = 3
+    reverse = np.array([ord(c) for c in "ACTG"], dtype=np.uint8)
+    @classmethod
+    def from_bytes(cls, bytes_array):
+        return cls._lookup_byte_to_2bits[bytes_array]
+
+    @classmethod
+    def to_bytes(cls, encoded):
+        return cls.reverse[encoded]
+
+
+class SimpleEncoding(ACTGTwoBitEncoding):
+    _lookup_byte_to_2bits = np.zeros(256, dtype=np.uint8)
+    _lookup_byte_to_2bits[[97, 65]] = 0
+    _lookup_byte_to_2bits[[99, 67]] = 1
+    _lookup_byte_to_2bits[[116, 84]] = 2
+    _lookup_byte_to_2bits[[103, 71]] = 3
+
+    _shift_2bits = 2*np.arange(4, dtype=np.uint8)
+
+    @classmethod
+    def convert_byte_to_2bits(cls, one_byte):
+        assert one_byte.dtype == np.uint8, one_byte.dtype
+        return cls._lookup_byte_to_2bits[one_byte]
+
+    @classmethod
+    def join_2bits_to_byte(cls, two_bits_vector):
+        return np.bitwise_or.reduce(two_bits_vector << cls._shift_2bits, axis=-1)
+
+    @classmethod
+    def from_bytes(cls, sequence):
+        assert sequence.dtype==np.uint8
+        assert sequence.size % 4 == 0, sequence.size
+        two_bits = cls.convert_byte_to_2bits(sequence)
+        codes = cls.join_2bits_to_byte(two_bits.reshape(-1, 4))
+        return codes.flatten()
+
+def twobit_swap(number):
+    dtype = number.dtype
+    byte_lookup = np.zeros(256, dtype=np.uint8)
+    power_array = 4**np.arange(4)
+    rev_power_array = power_array[::-1]
+    for two_bit_string in product([0, 1, 2, 3], repeat=4):
+        byte_lookup[np.sum(power_array*two_bit_string)] = np.sum(rev_power_array*two_bit_string)
+    new_bytes = byte_lookup[number.view(np.uint8)]
+    return new_bytes.view(dtype).byteswap()
