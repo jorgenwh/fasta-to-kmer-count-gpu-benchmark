@@ -1,5 +1,9 @@
+*.npy
 *.fa
 testreads20m.fa
+testkmers.npy
+uniquekmers.npy
+runtimes.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

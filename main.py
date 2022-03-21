@@ -17,19 +17,29 @@ if __name__ == "__main__":
     argument_parser.add_argument("--cuda", help="Use GPU", action="store_true")
     args = argument_parser.parse_args()
 
+    print(f"Arguments: k={args.k}, chunk-size={args.chunksize}, cuda={args.cuda}")
+    
+    """
     if args.cuda:
         print("GPU enabled")
     else:
         print("GPU disabled. Run with --cuda to enable GPU")
+    """
 
     xp = cp if args.cuda else np
 
-    start = time.time_ns()
+    unique_kmers = np.load("uniquekmers.npy")[:100000000]
 
-    print("Setting up data structures ...")
+    #print("Setting up data structures ...")
     parser = BufferedNumpyParser.from_filename(args.f, args.chunksize)
     hasher = TwoBitHash(k=args.k, is_cuda=args.cuda)
-    # counter = ...
+    counter = Counter(keys=unique_kmers)
+
+    if args.cuda:
+        counter.to_cuda()
+
+    #print("Counting kmers ...")
+    start = time.time_ns()
 
     for i, chunk in enumerate(parser.get_chunks()):
         if args.cuda:
@@ -38,12 +48,13 @@ if __name__ == "__main__":
         sequences = chunk.get_sequences()
         kmers = hasher.get_kmer_hashes(sequences)
 
-        # count kmers ...
+        counter.count(kmers)
 
-        print(f"Chunks counted: {i+1}", end="\r")
+    #    print(f"Chunks counted: {i+1}", end="\r")
 
-    print(f"Chunks counted: {i+1}")
+    #print(f"Chunks counted: {i+1}")
 
     elapsed = time.time_ns() - start
     print(f"Elapsed time: {elapsed / 1e9} seconds")
+    print()
 
