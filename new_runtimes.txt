@@ -1,0 +1,40 @@
+
+Modulo=15485863
+
+Benchmarking CPU
+
+Benchmarking GPU
+
+Benchmarking completed
+
+Modulo=32452843
+
+Benchmarking CPU
+
+Benchmarking GPU
+
+Benchmarking completed
+
+Modulo=49979687
+
+Benchmarking CPU
+
+Benchmarking GPU
+
+Benchmarking completed
+
+Modulo=67867967
+
+Benchmarking CPU
+
+Benchmarking GPU
+
+Benchmarking completed
+
+Modulo=86028121
+
+Benchmarking CPU
+
+Benchmarking GPU
+
+Benchmarking completed

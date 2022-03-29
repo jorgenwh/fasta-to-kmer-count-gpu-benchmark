@@ -42,7 +42,7 @@ def plot(k, elapsed, elapsed_cuda, chunk_sizes, output_filename):
     #plt.plot([i/1e6 for i in chunk_sizes])
     plt.plot([s/1e6 for s in chunk_sizes], [t for t in elapsed])
     plt.plot([s/1e6 for s in chunk_sizes], [t for t in elapsed_cuda])
-    plt.scatter([s/1e6 for s in chunk_sizes], [t for t in elapsed], label="GPU")
+    plt.scatter([s/1e6 for s in chunk_sizes], [t for t in elapsed], label="CPU")
     plt.scatter([s/1e6 for s in chunk_sizes], [t for t in elapsed_cuda], label="GPU")
 
     plt.annotate(f"{(chunk_sizes[-1]/1e6, round(elapsed[-1]))}", (chunk_sizes[-1]/1e6, elapsed[-1]))

@@ -13,6 +13,7 @@ if __name__ == "__main__":
     argument_parser = argparse.ArgumentParser(description="Eeeeee")
     argument_parser.add_argument("-f", help="Fasta filename", type=str, required=True)
     argument_parser.add_argument("-k", help="length of kmers", type=int, default=31)
+    argument_parser.add_argument("-mod", help="Modulo", type=int, default=100000033)
     argument_parser.add_argument("-chunksize", help="Chunk size", type=int, default=10000000)
     argument_parser.add_argument("--cuda", help="Use GPU", action="store_true")
     args = argument_parser.parse_args()
@@ -28,12 +29,13 @@ if __name__ == "__main__":
 
     xp = cp if args.cuda else np
 
-    unique_kmers = np.load("uniquekmers.npy")[:100000000]
+    #unique_kmers = np.load("uniquekmers.npy")[:100000000]
+    unique_kmers = np.load("uniquekmers.npy")
 
     #print("Setting up data structures ...")
     parser = BufferedNumpyParser.from_filename(args.f, args.chunksize)
     hasher = TwoBitHash(k=args.k, is_cuda=args.cuda)
-    counter = Counter(keys=unique_kmers)
+    counter = Counter(keys=unique_kmers, mod=args.mod)
 
     if args.cuda:
         counter.to_cuda()
@@ -50,7 +52,7 @@ if __name__ == "__main__":
 
         counter.count(kmers)
 
-    #    print(f"Chunks counted: {i+1}", end="\r")
+        #print(f"Chunks counted: {i+1}", end="\r")
 
     #print(f"Chunks counted: {i+1}")
 
