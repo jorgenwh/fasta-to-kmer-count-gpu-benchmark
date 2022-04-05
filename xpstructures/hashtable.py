@@ -211,6 +211,17 @@ class Counter(HashTable):
         if isinstance(self._values, RaggedArray):
             self._values._safe_mode=False
 
+    @classmethod
+    def from_other_counter(cls, cntr):
+        counter = cls(RaggedArray([0], [1]))
+        counter._keys = cntr._keys
+        counter._values = cntr._values
+        counter._key_dtype = cntr._key_dtype
+        counter._mod = cntr._mod
+        counter._safe_mode = cntr._safe_mode
+        counter._is_cuda = False
+        return counter
+
     def count(self, keys):
         """ Count the occurances of the predefined set of integers.
 

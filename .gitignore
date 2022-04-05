@@ -3,6 +3,7 @@
 testreads20m.fa
 testkmers.npy
 uniquekmers.npy
+counter_index_only_variants_with_revcomp.npz
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
